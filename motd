@@ -1,0 +1,628 @@
+# ПРОНТ: Система тарифов для Node.js биллинга
+
+## Общая архитектура
+
+### 1. Структура проекта
+```
+/var/www/wemx/
+├── src/
+│   ├── models/           # Модели данных
+│   ├── services/         # Сервисы для разных панелей
+│   ├── controllers/      # Контроллеры API
+│   ├── routes/           # Маршруты API
+│   ├── middleware/       # Промежуточное ПО
+│   ├── utils/            # Утилиты и хелперы
+│   ├── config/           # Конфигурации
+│   └── jobs/             # Фоновые задачи
+├── database/
+│   ├── migrations/       # Миграции БД
+│   └── seeders/         # Сидеры данных
+├── public/               # Статические файлы
+└── views/                # Шаблоны (если используете)
+```
+
+### 2. Основные модели данных
+
+#### Package (Тариф)
+```javascript
+{
+  id: ObjectId,
+  name: String,                    // Название тарифа
+  description: String,             // Описание
+  service: String,                 // Тип сервиса (pterodactyl, wisp, hestia)
+  status: String,                  // active, inactive, restricted
+  categoryId: ObjectId,            // ID категории
+  globalQuantity: Number,          // Глобальное количество (-1 = безлимит)
+  clientQuantity: Number,          // Количество на клиента (-1 = безлимит)
+  requireDomain: Boolean,          // Требует ли домен
+  allowCoupons: Boolean,           // Разрешить купоны
+  allowNotes: Boolean,             // Разрешить заметки
+  data: Object,                    // JSON с настройками сервиса
+  setupOn: String,                 // payment_received, order_created
+  order: Number,                   // Порядок отображения
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+#### PackagePrice (Цены)
+```javascript
+{
+  id: ObjectId,
+  packageId: ObjectId,             // ID тарифа
+  type: String,                    // single, recurring
+  period: Number,                  // Период в днях (1, 7, 30, 90, 180, 365)
+  price: Number,                   // Базовая цена
+  renewalPrice: Number,            // Цена продления
+  setupFee: Number,                // Плата за настройку
+  cancellationFee: Number,         // Плата за отмену
+  upgradeFee: Number,              // Плата за апгрейд
+  isActive: Boolean,               // Активна ли цена
+  data: Object,                    // Дополнительные данные
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+#### PackageConfigOption (Опции конфигурации)
+```javascript
+{
+  id: ObjectId,
+  packageId: ObjectId,             // ID тарифа
+  key: String,                     // Ключ опции
+  type: String,                    // Тип поля (text, number, select, checkbox)
+  pricePer30Days: Number,          // Цена за 30 дней
+  isOnetime: Boolean,              // Разовая оплата
+  isRequired: Boolean,             // Обязательная опция
+  icon: String,                    // Иконка
+  rules: Array,                    // Правила валидации
+  data: Object,                    // Дополнительные данные
+  order: Number,                   // Порядок отображения
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+#### Order (Заказ)
+```javascript
+{
+  id: ObjectId,
+  uuid: String,                    // Уникальный идентификатор
+  userId: ObjectId,                // ID пользователя
+  packageId: ObjectId,             // ID тарифа
+  status: String,                  // pending, active, suspended, cancelled, terminated
+  name: String,                    // Название заказа
+  service: String,                 // Тип сервиса
+  data: Object,                    // Данные сервиса
+  options: Object,                 // Опции заказа
+  domain: String,                  // Домен (если требуется)
+  type: String,                    // Тип заказа
+  couponCode: String,              // Код купона
+  period: Number,                  // Период в днях
+  price: Object,                   // Цена (базовая, продление, настройка)
+  renewalPrice: Number,            // Цена продления
+  setupFee: Number,                // Плата за настройку
+  cancellationFee: Number,         // Плата за отмену
+  notes: String,                   // Заметки
+  cancelledAt: Date,               // Дата отмены
+  cancelReason: String,            // Причина отмены
+  lastRenewedAt: Date,             // Последнее продление
+  dueDate: Date,                   // Дата следующего платежа
+  externalId: String,              // Внешний ID в панели
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### 3. Сервисная архитектура
+
+#### ServiceInterface (Базовый интерфейс)
+```javascript
+class ServiceInterface {
+  // Метаданные сервиса
+  static getMetaData() {}
+  
+  // Конфигурация сервиса
+  static getConfig() {}
+  
+  // Конфигурация тарифа
+  static getPackageConfig(package) {}
+  
+  // Конфигурация оформления заказа
+  static getCheckoutConfig(package) {}
+  
+  // Создание сервера
+  async create(data) {}
+  
+  // Приостановка сервера
+  async suspend(data) {}
+  
+  // Возобновление сервера
+  async unsuspend(data) {}
+  
+  // Завершение сервера
+  async terminate(data) {}
+}
+```
+
+#### PterodactylService (Пример реализации)
+```javascript
+class PterodactylService extends ServiceInterface {
+  static getMetaData() {
+    return {
+      displayName: 'Pterodactyl',
+      author: 'Your Company',
+      version: '1.0.0',
+      wemxVersion: '1.0.0'
+    };
+  }
+  
+  static getConfig() {
+    return [
+      {
+        key: 'encrypted::pterodactyl::api_url',
+        name: 'API URL',
+        description: 'Pterodactyl API URL',
+        type: 'text',
+        rules: ['required', 'url']
+      },
+      {
+        key: 'encrypted::pterodactyl::api_admin_key',
+        name: 'Admin API Key',
+        description: 'Pterodactyl administrator API key',
+        type: 'password',
+        rules: ['required', 'starts_with:ptlc_']
+      }
+    ];
+  }
+  
+  static getPackageConfig(package) {
+    return [
+      {
+        key: 'egg_id',
+        name: 'Egg ID',
+        type: 'select',
+        options: this.getEggs(),
+        rules: ['required']
+      },
+      {
+        key: 'memory_limit',
+        name: 'Memory Limit (MB)',
+        type: 'number',
+        rules: ['required', 'min:128']
+      },
+      {
+        key: 'disk_limit',
+        name: 'Disk Limit (MB)',
+        type: 'number',
+        rules: ['required', 'min:1024']
+      }
+    ];
+  }
+  
+  async create(data) {
+    // Логика создания сервера в Pterodactyl
+    const server = await this.pterodactylAPI.createServer({
+      name: data.name,
+      egg: data.egg_id,
+      memory: data.memory_limit,
+      disk: data.disk_limit,
+      // другие параметры
+    });
+    
+    return server;
+  }
+}
+```
+
+### 4. API структура
+
+#### Маршруты для тарифов
+```javascript
+// GET /api/packages - список всех тарифов
+// POST /api/packages - создание тарифа
+// GET /api/packages/:id - получение тарифа
+// PUT /api/packages/:id - обновление тарифа
+// DELETE /api/packages/:id - удаление тарифа
+
+// GET /api/packages/:id/prices - цены тарифа
+// POST /api/packages/:id/prices - добавление цены
+// PUT /api/packages/:id/prices/:priceId - обновление цены
+// DELETE /api/packages/:id/prices/:priceId - удаление цены
+
+// GET /api/packages/:id/config-options - опции конфигурации
+// POST /api/packages/:id/config-options - добавление опции
+// PUT /api/packages/:id/config-options/:optionId - обновление опции
+// DELETE /api/packages/:id/config-options/:optionId - удаление опции
+```
+
+#### Маршруты для заказов
+```javascript
+// GET /api/orders - список заказов
+// POST /api/orders - создание заказа
+// GET /api/orders/:id - получение заказа
+// PUT /api/orders/:id - обновление заказа
+// DELETE /api/orders/:id - удаление заказа
+
+// POST /api/orders/:id/suspend - приостановка
+// POST /api/orders/:id/unsuspend - возобновление
+// POST /api/orders/:id/terminate - завершение
+// POST /api/orders/:id/extend - продление
+// POST /api/orders/:id/cancel - отмена
+```
+
+### 5. Контроллеры
+
+#### PackagesController
+```javascript
+class PackagesController {
+  // Получение списка тарифов
+  async index(req, res) {
+    const packages = await Package.find()
+      .populate('category')
+      .populate('prices')
+      .populate('features')
+      .populate('configOptions');
+    
+    res.json(packages);
+  }
+  
+  // Создание тарифа
+  async store(req, res) {
+    const package = new Package(req.body);
+    await package.save();
+    
+    // Создание базовой цены
+    const price = new PackagePrice({
+      packageId: package._id,
+      period: 30,
+      price: 5,
+      renewalPrice: 5
+    });
+    await price.save();
+    
+    res.status(201).json(package);
+  }
+  
+  // Обновление тарифа
+  async update(req, res) {
+    const package = await Package.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    res.json(package);
+  }
+}
+```
+
+#### OrdersController
+```javascript
+class OrdersController {
+  // Создание заказа
+  async store(req, res) {
+    const order = new Order(req.body);
+    order.status = 'pending';
+    order.dueDate = new Date(Date.now() + order.period * 24 * 60 * 60 * 1000);
+    
+    await order.save();
+    
+    // Создание платежа
+    const payment = new Payment({
+      orderId: order._id,
+      userId: order.userId,
+      amount: order.price.base_price + order.price.setup_fee,
+      status: 'pending'
+    });
+    await payment.save();
+    
+    res.status(201).json(order);
+  }
+  
+  // Приостановка заказа
+  async suspend(req, res) {
+    const order = await Order.findById(req.params.id);
+    
+    // Вызов сервиса для приостановки
+    await order.service().suspend();
+    
+    order.status = 'suspended';
+    await order.save();
+    
+    res.json({ message: 'Order suspended successfully' });
+  }
+}
+```
+
+### 6. Middleware
+
+#### AuthMiddleware
+```javascript
+const authMiddleware = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.userId);
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+};
+```
+
+#### PermissionMiddleware
+```javascript
+const permissionMiddleware = (permission) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    if (!req.user.hasPermission(permission)) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+    
+    next();
+  };
+};
+```
+
+### 7. Фоновые задачи
+
+#### OrderRenewalJob
+```javascript
+class OrderRenewalJob {
+  async handle() {
+    const expiringOrders = await Order.find({
+      status: 'active',
+      dueDate: { $lte: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) } // 5 дней
+    });
+    
+    for (const order of expiringOrders) {
+      // Создание инвойса для продления
+      const invoice = new Invoice({
+        orderId: order._id,
+        userId: order.userId,
+        amount: order.renewalPrice,
+        dueDate: order.dueDate
+      });
+      await invoice.save();
+      
+      // Отправка уведомления
+      await this.sendRenewalNotification(order);
+    }
+  }
+}
+```
+
+#### ServerCleanupJob
+```javascript
+class ServerCleanupJob {
+  async handle() {
+    const cancelledOrders = await Order.find({
+      status: 'cancelled',
+      cancelledAt: { $lte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // 1 день
+    });
+    
+    for (const order of cancelledOrders) {
+      // Завершение сервера
+      await order.service().terminate();
+      
+      order.status = 'terminated';
+      await order.save();
+    }
+  }
+}
+```
+
+### 8. Конфигурация
+
+#### Database config
+```javascript
+// config/database.js
+module.exports = {
+  mongodb: {
+    url: process.env.MONGODB_URL || 'mongodb://localhost:27017/wemx',
+    options: {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    }
+  }
+};
+```
+
+#### Service config
+```javascript
+// config/services.js
+module.exports = {
+  pterodactyl: {
+    api_url: process.env.PTERODACTYL_API_URL,
+    api_key: process.env.PTERODACTYL_API_KEY,
+    sso_secret: process.env.PTERODACTYL_SSO_SECRET
+  },
+  wisp: {
+    api_url: process.env.WISP_API_URL,
+    api_key: process.env.WISP_API_KEY
+  }
+};
+```
+
+### 9. Утилиты и хелперы
+
+#### PriceCalculator
+```javascript
+class PriceCalculator {
+  static calculateTotalPrice(packagePrice, options = []) {
+    let total = packagePrice.price + packagePrice.setupFee;
+    
+    // Добавление стоимости опций
+    for (const option of options) {
+      if (option.isOnetime) {
+        total += option.price;
+      } else {
+        total += (option.pricePer30Days / 30) * packagePrice.period;
+      }
+    }
+    
+    return total;
+  }
+  
+  static calculateRenewalPrice(packagePrice, options = []) {
+    let total = packagePrice.renewalPrice;
+    
+    // Добавление стоимости опций
+    for (const option of options) {
+      if (!option.isOnetime) {
+        total += (option.pricePer30Days / 30) * packagePrice.period;
+      }
+    }
+    
+    return total;
+  }
+}
+```
+
+#### ServiceFactory
+```javascript
+class ServiceFactory {
+  static createService(serviceType, order) {
+    switch (serviceType) {
+      case 'pterodactyl':
+        return new PterodactylService(order);
+      case 'wisp':
+        return new WispService(order);
+      case 'hestia':
+        return new HestiaService(order);
+      default:
+        throw new Error(`Unknown service type: ${serviceType}`);
+    }
+  }
+}
+```
+
+### 10. Система событий
+
+#### EventEmitter
+```javascript
+const EventEmitter = require('events');
+
+class OrderEventEmitter extends EventEmitter {
+  constructor() {
+    super();
+    
+    this.on('order.created', this.handleOrderCreated.bind(this));
+    this.on('order.suspended', this.handleOrderSuspended.bind(this));
+    this.on('order.unsuspended', this.handleOrderUnsuspended.bind(this));
+    this.on('order.terminated', this.handleOrderTerminated.bind(this));
+  }
+  
+  async handleOrderCreated(order) {
+    // Логирование
+    await Logger.info(`Order ${order.id} created`);
+    
+    // Отправка уведомления
+    await NotificationService.sendOrderCreated(order);
+  }
+}
+```
+
+### 11. Валидация
+
+#### Validation schemas
+```javascript
+const Joi = require('joi');
+
+const packageSchema = Joi.object({
+  name: Joi.string().required().max(100),
+  description: Joi.string().optional(),
+  service: Joi.string().required(),
+  categoryId: Joi.objectId().required(),
+  status: Joi.string().valid('active', 'inactive', 'restricted').required(),
+  globalQuantity: Joi.number().integer().min(-1).default(-1),
+  clientQuantity: Joi.number().integer().min(-1).default(-1),
+  requireDomain: Joi.boolean().default(false),
+  allowCoupons: Joi.boolean().default(true),
+  allowNotes: Joi.boolean().default(true),
+  data: Joi.object().optional(),
+  setupOn: Joi.string().valid('payment_received', 'order_created').default('payment_received')
+});
+```
+
+### 12. Логирование и мониторинг
+
+#### Logger
+```javascript
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+```
+
+### 13. Тестирование
+
+#### Test structure
+```javascript
+// tests/
+├── unit/
+│   ├── models/
+│   ├── services/
+│   └── controllers/
+├── integration/
+│   ├── api/
+│   └── database/
+└── e2e/
+    └── scenarios/
+```
+
+### 14. Деплой и CI/CD
+
+#### Docker
+```dockerfile
+FROM node:18-alpine
+WORKDIR /var/www/wemx
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+#### PM2
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'wemx-billing',
+    script: 'src/app.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    }
+  }]
+};
+```
+
+Эта архитектура обеспечивает модульность, масштабируемость и легкость в поддержке системы тарифов для Node.js биллинга, следуя принципам, реализованным в оригинальном WemX на PHP.
+
