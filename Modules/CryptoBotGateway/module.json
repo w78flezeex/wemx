@@ -1,0 +1,13 @@
+{
+    "name": "CryptoBotGateway",
+    "alias": "cryptobotgateway",
+    "description": "Платёжный шлюз @CryptoBot",
+    "keywords": ["payment", "gateway", "cryptobot", "crypto", "send.tg"],
+    "priority": 0,
+    "providers": [
+        "Modules\\CryptoBotGateway\\Providers\\CryptoBotGatewayServiceProvider"
+    ],
+    "files": [],
+    "type": "gateway",
+    "class": "Modules\\CryptoBotGateway\\Entities\\CryptoBotGateway"
+}

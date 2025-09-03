@@ -1,0 +1,12 @@
+{
+    "name": "custom-recommendations",
+    "version": "1.0.0",
+    "description": "Система персонализированных рекомендаций для WemX",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "vite": "^4.0.0"
+    }
+}

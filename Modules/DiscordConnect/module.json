@@ -1,0 +1,11 @@
+{
+    "name": "DiscordConnect",
+    "alias": "discord-connect",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\DiscordConnect\\Providers\\DiscordConnectServiceProvider"
+    ],
+    "files": []
+}

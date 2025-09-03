@@ -1,0 +1,11 @@
+{
+    "name": "RequireOauth",
+    "alias": "requireoauth",
+    "description": "Wemx Require Oauth",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\RequireOauth\\Providers\\RequireOauthServiceProvider"
+    ],
+    "files": []
+}

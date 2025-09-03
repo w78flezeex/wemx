@@ -1,0 +1,23 @@
+{
+    "name": "wemx/gateway-paybylink",
+    "description": "",
+    "authors": [
+        {
+            "name": "Mubeen",
+            "email": "mubeen@wemx.net"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\PayByLinkGateway\\": ""
+        }
+    }
+}

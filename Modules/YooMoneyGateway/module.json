@@ -1,0 +1,13 @@
+{
+    "name": "YooMoneyGateway",
+    "alias": "yoomoney",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\YooMoneyGateway\\Providers\\YooMoneyGatewayServiceProvider"
+    ],
+    "files": [],
+    "type": "gateway",
+    "class": "Modules\\YooMoneyGateway\\Entities\\YooMoneyGateway"
+}

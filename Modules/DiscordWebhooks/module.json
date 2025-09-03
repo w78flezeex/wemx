@@ -1,0 +1,11 @@
+{
+    "name": "DiscordWebhooks",
+    "alias": "discordwebhooks",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\DiscordWebhooks\\Providers\\DiscordWebhooksServiceProvider"
+    ],
+    "files": ["helper.php"]
+}

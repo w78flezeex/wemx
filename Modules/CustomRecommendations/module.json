@@ -1,0 +1,16 @@
+{
+    "name": "CustomRecommendations",
+    "alias": "custom-recommendations",
+    "description": "Система персонализированных рекомендаций для WemX",
+    "keywords": ["recommendations", "personalization", "ai", "machine-learning"],
+    "priority": 0,
+    "providers": [
+        "Modules\\CustomRecommendations\\Providers\\CustomRecommendationsServiceProvider"
+    ],
+    "aliases": {
+        "Recommendation": "Modules\\CustomRecommendations\\Entities\\Recommendation",
+        "UserPreference": "Modules\\CustomRecommendations\\Entities\\UserPreference",
+        "RecommendationEngine": "Modules\\CustomRecommendations\\Services\\RecommendationEngine"
+    },
+    "files": ["helpers.php"]
+}

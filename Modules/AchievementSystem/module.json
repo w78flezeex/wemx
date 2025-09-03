@@ -1,0 +1,16 @@
+{
+    "name": "AchievementSystem",
+    "alias": "achievement-system",
+    "description": "Система достижений и геймификации для WemX",
+    "keywords": ["achievements", "gamification", "rewards", "badges"],
+    "priority": 0,
+    "providers": [
+        "Modules\\AchievementSystem\\Providers\\AchievementSystemServiceProvider"
+    ],
+    "aliases": {
+        "Achievement": "Modules\\AchievementSystem\\Entities\\Achievement",
+        "UserAchievement": "Modules\\AchievementSystem\\Entities\\UserAchievement",
+        "AchievementCategory": "Modules\\AchievementSystem\\Entities\\AchievementCategory"
+    },
+    "files": ["helpers.php"]
+}

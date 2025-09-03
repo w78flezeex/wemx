@@ -1,0 +1,13 @@
+{
+    "name": "APaysGateway",
+    "alias": "apaysgateway",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\APaysGateway\\Providers\\APaysGatewayServiceProvider"
+    ],
+    "files": [],
+    "type": "gateway",
+    "class": "Modules\\APaysGateway\\Entities\\APaysGateway"
+}

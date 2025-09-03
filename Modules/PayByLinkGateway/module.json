@@ -1,0 +1,15 @@
+{
+    "name": "PayByLinkGateway",
+    "alias": "paybylink",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\PayByLinkGateway\\Providers\\PayByLinkGatewayServiceProvider"
+    ],
+    "files": [],
+
+
+    "type": "gateway",
+    "class": "Modules\\PayByLinkGateway\\Entities\\PayByLinkGateway"
+}

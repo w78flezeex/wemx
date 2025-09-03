@@ -1,0 +1,13 @@
+{
+    "name": "AAIOGateway",
+    "alias": "aaiogateway",
+    "description": "Платёжный шлюз AAIO",
+    "keywords": ["payment", "gateway", "aaio"],
+    "priority": 0,
+    "providers": [
+        "Modules\\AAIOGateway\\Providers\\AAIOGatewayServiceProvider"
+    ],
+    "files": [],
+    "type": "gateway",
+    "class": "Modules\\AAIOGateway\\Entities\\AAIOGateway"
+}

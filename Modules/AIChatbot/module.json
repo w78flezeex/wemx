@@ -1,0 +1,17 @@
+{
+    "name": "AIChatbot",
+    "alias": "ai-chatbot",
+    "description": "Искусственный интеллект чат-бот для WemX",
+    "keywords": ["ai", "chatbot", "machine-learning", "support", "automation"],
+    "priority": 0,
+    "providers": [
+        "Modules\\AIChatbot\\Providers\\AIChatbotServiceProvider"
+    ],
+    "aliases": {
+        "Chatbot": "Modules\\AIChatbot\\Entities\\Chatbot",
+        "ChatSession": "Modules\\AIChatbot\\Entities\\ChatSession",
+        "ChatMessage": "Modules\\AIChatbot\\Entities\\ChatMessage",
+        "AIService": "Modules\\AIChatbot\\Services\\AIService"
+    },
+    "files": ["helpers.php"]
+}

@@ -1,0 +1,27 @@
+{
+    "name": "wemx/custom-recommendations",
+    "description": "Система персонализированных рекомендаций для WemX",
+    "type": "laravel-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "WemX Team",
+            "email": "support@wemx.com"
+        }
+    ],
+    "require": {
+        "php": "^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\CustomRecommendations\\": ""
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Modules\\CustomRecommendations\\Providers\\CustomRecommendationsServiceProvider"
+            ]
+        }
+    }
+}
